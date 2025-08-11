@@ -11,7 +11,7 @@ const ProcessCard = ({
   description: string;
 }) => {
   return (
-    <div className="bg-accent-foreground relative flex flex-col gap-4 rounded-lg py-4">
+    <div className="bg-accent-foreground relative z-10 flex flex-col gap-4 rounded-lg py-4">
       <h3 className="px-2 text-2xl md:px-4">{title}</h3>
       <div className="border-accent w-full border-b"></div>
       <p className="px-2 text-lg md:px-4">{description}</p>

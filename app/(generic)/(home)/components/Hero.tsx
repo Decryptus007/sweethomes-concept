@@ -57,7 +57,7 @@ export default function Hero() {
   };
 
   return (
-    <div className="relative min-h-[700px] overflow-hidden pt-32 pb-16 lg:pt-56 lg:pb-20">
+    <div className="relative min-h-[700px] overflow-hidden pt-44 pb-16 lg:pt-56 lg:pb-20">
       {/* Current Background Image */}
       <div
         className="absolute inset-0 transition-opacity duration-800 ease-in-out"
