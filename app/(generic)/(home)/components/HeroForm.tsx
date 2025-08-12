@@ -82,7 +82,7 @@ export default function HeroForm() {
             </Select>
           </div>
         </div>
-        <Button className="h-full md:text-lg lg:text-2xl">Search Now</Button>
+        <Button className="h-full md:text-lg lg:text-2xl">Book Now</Button>
       </form>
     </div>
   );
