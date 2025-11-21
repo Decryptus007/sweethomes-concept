@@ -6,19 +6,19 @@ import React from "react";
 
 const featureImgs = [
   {
-    img: "/assets/images/home/feature-img-1.jpg",
+    img: "/assets/images/new/Book with confidence (image 1).jpg",
     title: "Effortless Hotel Booking",
     description:
       "Easily find and reserve your ideal stay with our user-friendly platform no stress, no hassle, just smooth booking from start to finish.",
   },
   {
-    img: "/assets/images/home/feature-img-2.jpg",
+    img: "/assets/images/new/Best price guarantee.jpg",
     title: "Best Price Guarantee",
     description:
       "If you find a better price elsewhere, we’ll match it to ensure you always get the best deal. If you find a better price elsewhere.",
   },
   {
-    img: "/assets/images/home/feature-img-3.jpg",
+    img: "/assets/images/new/Review and ratings.jpg",
     title: "Reviews & Ratings",
     description:
       "Hear what our guests have to say! Read honest reviews and real ratings from travelers who’ve stayed at our featured hotels.",
