@@ -12,7 +12,7 @@ export default function AboutUs() {
             Your Journey Starts <br className="hidden md:block" />
             With SweetHomes
           </h2>
-          <div className="mt-12 flex h-[500px] w-full items-end rounded-xl bg-[url('/assets/images/home/about-us.jpg')] bg-cover p-2 md:h-[600px] md:p-4 lg:p-8">
+          <div className="mt-12 flex h-[500px] w-full items-end rounded-xl bg-[url('/assets/images/new/Who we are .jpg')] bg-cover p-2 md:h-[600px] md:p-4 lg:p-8">
             <div className="flex flex-col gap-4 rounded-lg bg-white p-4 md:w-2/3 md:p-6 lg:w-1/2 lg:p-8">
               <h3 className="text-2xl md:text-3xl">Who We Are</h3>
               <p className="text-lg">

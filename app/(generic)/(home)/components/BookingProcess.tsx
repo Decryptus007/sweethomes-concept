@@ -30,7 +30,7 @@ export default function BookingProcess() {
           muted
           loop
           playsInline
-          poster="/assets/images/home/booking-process-poster.jpg"
+          poster="/assets/images/new/effortless hotel booking (1).jpg"
         >
           <source
             src="/assets/videos/home/booking-process-ad.mp4"
@@ -39,7 +39,7 @@ export default function BookingProcess() {
           <Image
             width={500}
             height={500}
-            src="/assets/images/home/booking-process-poster.jpg"
+            src="/assets/images/new/effortless hotel booking (1).jpg"
             alt="Booking Process Background"
             className="h-full w-full object-cover"
           />
