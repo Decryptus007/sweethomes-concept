@@ -22,7 +22,7 @@ export default function ContactUs() {
             <Image
               width={500}
               height={500}
-              src="/assets/images/home/contact-img.jpg"
+              src="/assets/images/new/Talk to our front desk .jpg"
               alt="Contact Us"
               className="col-span-12 hidden h-auto w-full rounded-lg lg:col-span-4 lg:block lg:h-full"
             />

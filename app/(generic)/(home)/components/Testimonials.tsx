@@ -23,7 +23,7 @@ const TestimonialCard = ({
         <Image
           width={500}
           height={500}
-          src="/assets/images/home/testimonial-avatar-1.jpg"
+          src="/assets/images/new/John Doe profile picture .jpg"
           alt="Testimonial Avatar"
           className="size-14 rounded-full"
         />
