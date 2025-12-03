@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Gilda_Display, Nunito } from "next/font/google";
 import "./globals.css";
+import { Providers } from "../lib/providers";
 
 const gildaDisplay = Gilda_Display({
   weight: "400",
@@ -76,7 +77,7 @@ export default function RootLayout({
       <body
         className={`${gildaDisplay.variable} ${nunito.variable} antialiased`}
       >
-        {children}
+        <Providers>{children}</Providers>
       </body>
     </html>
   );

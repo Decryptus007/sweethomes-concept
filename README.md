@@ -20,6 +20,101 @@ You can start editing the page by modifying `app/page.tsx`. The page auto-update
 
 This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
 
+## API Setup
+
+This project uses Axios for HTTP requests with interceptors for authentication, and React Query (@tanstack/react-query) for data fetching and caching.
+
+### Environment Variables
+
+Create a `.env.local` file in the root directory with:
+
+```
+NEXT_PUBLIC_API_URL=https://api.sweethomes.com.ng/api/
+```
+
+### API Clients
+
+Two Axios instances are configured in `lib/api.ts`:
+
+- `userApiClient`: For normal user requests. Uses token stored in localStorage as 'user_token'.
+- `adminApiClient`: For admin requests. Uses token stored in localStorage as 'admin_token'.
+
+Both clients automatically add the Authorization header with Bearer token if available.
+
+### React Query
+
+React Query is set up with a QueryClient provider in `lib/providers.tsx`, wrapped in the root layout.
+
+## Admin Dashboard
+
+The admin dashboard provides a comprehensive interface for managing hotel operations.
+
+### Accessing the Admin Dashboard
+
+Navigate to `/admin/login` to access the admin login page.
+
+### Admin Authentication
+
+Admin authentication uses the following endpoints:
+
+- **Login**: `POST /admin/login` (FormData with email and password)
+- **Get Current User**: `GET /user/me` (requires Bearer token)
+
+Token is stored in `localStorage` as `admin_token`.
+
+### Admin Pages
+
+| Route               | Description                                                     |
+| ------------------- | --------------------------------------------------------------- |
+| `/admin/login`      | Admin login page with form validation                           |
+| `/admin/dashboard`  | Analytics overview with stats, recent bookings, and room status |
+| `/admin/rooms`      | Manage hotel rooms (view, add, edit, delete)                    |
+| `/admin/amenities`  | Manage room amenities                                           |
+| `/admin/facilities` | Manage hotel facilities                                         |
+| `/admin/bookings`   | View and manage all reservations                                |
+
+### Admin Project Structure
+
+```
+app/admin/
+├── layout.tsx              # Admin root layout with providers
+├── login/
+│   └── page.tsx            # Login page
+└── (dashboard)/
+    ├── layout.tsx          # Protected dashboard layout with sidebar
+    ├── dashboard/
+    │   └── page.tsx        # Analytics dashboard
+    ├── rooms/
+    │   └── page.tsx        # Rooms management
+    ├── amenities/
+    │   └── page.tsx        # Amenities management
+    ├── facilities/
+    │   └── page.tsx        # Facilities management
+    └── bookings/
+        └── page.tsx        # Bookings management
+
+components/admin/
+└── Sidebar.tsx             # Responsive sidebar navigation
+
+contexts/
+└── AdminAuthContext.tsx    # Admin authentication context
+
+hooks/
+└── useAdminAuth.ts         # Admin authentication hooks
+
+types/
+└── admin.ts                # TypeScript types for admin
+```
+
+### Features
+
+- **Responsive Design**: Works on desktop, tablet, and mobile devices
+- **Collapsible Sidebar**: Desktop sidebar can be collapsed; mobile uses slide-out drawer
+- **Protected Routes**: Dashboard routes require authentication
+- **Form Validation**: Login form with client-side validation
+- **Search & Filter**: All listing pages support search and filtering
+- **Status Indicators**: Color-coded status badges for rooms, bookings, and facilities
+
 ## Learn More
 
 To learn more about Next.js, take a look at the following resources:
