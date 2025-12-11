@@ -99,27 +99,39 @@ export function EditRoomModal({
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    if (isOpen) {
+    if (isOpen && room) {
       fetchAmenitiesAndFacilities();
-      if (room) {
-        setFormData({
-          name: room.name,
-          room_number: room.room_number,
-          type: room.type,
-          price_per_night: room.price_per_night.toString(),
-          capacity: room.capacity.toString(),
-          description: room.description,
-          status: room.status,
-          amenities: room.amenities.map((a) => ({
-            value: a.id,
-            label: a.name,
-          })),
-          facilities: room.facilities.map((f) => ({
-            value: f.id,
-            label: f.name,
-          })),
-        });
-      }
+      const newFormData = {
+        name: room.name,
+        room_number: room.room_number,
+        type: room.type,
+        price_per_night: room.price_per_night.toString(),
+        capacity: room.capacity.toString(),
+        description: room.description,
+        status: room.status,
+        amenities: room.amenities.map((a) => ({
+          value: a.id,
+          label: a.name,
+        })),
+        facilities: room.facilities.map((f) => ({
+          value: f.id,
+          label: f.name,
+        })),
+      };
+      setFormData(newFormData);
+    } else if (!isOpen) {
+      // Reset form when modal closes
+      setFormData({
+        name: "",
+        room_number: "",
+        type: RoomType.STANDARD,
+        price_per_night: "",
+        capacity: "",
+        description: "",
+        status: "available",
+        amenities: [],
+        facilities: [],
+      });
     }
   }, [isOpen, room]);
 
@@ -265,13 +277,18 @@ export function EditRoomModal({
                 Status
               </label>
               <ShadcnSelect
+                key={`status-${room?.id || "new"}`}
                 value={formData.status}
                 onValueChange={(
                   value: "available" | "occupied" | "maintenance",
-                ) => setFormData((prev) => ({ ...prev, status: value }))}
+                ) => {
+                  if (value) {
+                    setFormData((prev) => ({ ...prev, status: value }));
+                  }
+                }}
               >
                 <SelectTrigger>
-                  <SelectValue />
+                  <SelectValue placeholder="Select status" />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="available">Available</SelectItem>
