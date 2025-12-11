@@ -34,10 +34,25 @@ interface Facility {
   name: string;
 }
 
-interface AddRoomModalProps {
+interface Room {
+  id: number;
+  name: string;
+  room_number: string;
+  type: RoomType;
+  price_per_night: number;
+  capacity: number;
+  description: string;
+  status: "available" | "occupied" | "maintenance";
+  amenities: { id: number; name: string }[];
+  facilities: { id: number; name: string }[];
+  created_at: string;
+  updated_at: string;
+}
+
+interface EditRoomModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onAdd: (room: {
+  onEdit: (room: {
     name: string;
     room_number: string;
     type: RoomType;
@@ -48,9 +63,15 @@ interface AddRoomModalProps {
     amenities: number[];
     facilities: number[];
   }) => void;
+  room: Room | null;
 }
 
-export function AddRoomModal({ isOpen, onClose, onAdd }: AddRoomModalProps) {
+export function EditRoomModal({
+  isOpen,
+  onClose,
+  onEdit,
+  room,
+}: EditRoomModalProps) {
   const [formData, setFormData] = useState<{
     name: string;
     room_number: string;
@@ -80,8 +101,27 @@ export function AddRoomModal({ isOpen, onClose, onAdd }: AddRoomModalProps) {
   useEffect(() => {
     if (isOpen) {
       fetchAmenitiesAndFacilities();
+      if (room) {
+        setFormData({
+          name: room.name,
+          room_number: room.room_number,
+          type: room.type,
+          price_per_night: room.price_per_night.toString(),
+          capacity: room.capacity.toString(),
+          description: room.description,
+          status: room.status,
+          amenities: room.amenities.map((a) => ({
+            value: a.id,
+            label: a.name,
+          })),
+          facilities: room.facilities.map((f) => ({
+            value: f.id,
+            label: f.name,
+          })),
+        });
+      }
     }
-  }, [isOpen]);
+  }, [isOpen, room]);
 
   const fetchAmenitiesAndFacilities = async () => {
     setLoading(true);
@@ -117,7 +157,7 @@ export function AddRoomModal({ isOpen, onClose, onAdd }: AddRoomModalProps) {
         facilities: formData.facilities.map((f) => f.value),
       };
 
-      onAdd(roomData);
+      onEdit(roomData);
 
       // Reset form
       setFormData({
@@ -131,10 +171,9 @@ export function AddRoomModal({ isOpen, onClose, onAdd }: AddRoomModalProps) {
         amenities: [],
         facilities: [],
       });
-      onClose();
     } catch (error) {
-      console.error("Error adding room:", error);
-      toast.error("Failed to add room");
+      console.error("Error updating room:", error);
+      toast.error("Failed to update room");
     } finally {
       setIsSubmitting(false);
     }
@@ -144,11 +183,11 @@ export function AddRoomModal({ isOpen, onClose, onAdd }: AddRoomModalProps) {
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="sm:max-w-[600px]">
         <DialogHeader className="flex-col">
-          <DialogTitle>Add New Room</DialogTitle>
+          <DialogTitle>Edit Room</DialogTitle>
           <DialogDescription className="text-center">
-            Create a new room for your hotel.
+            Update the room details below.
             <br />
-            Fill in the details below.
+            Make changes and save when you&apos;re done.
           </DialogDescription>
         </DialogHeader>
 
@@ -352,7 +391,7 @@ export function AddRoomModal({ isOpen, onClose, onAdd }: AddRoomModalProps) {
               Cancel
             </Button>
             <Button type="submit" disabled={isSubmitting}>
-              {isSubmitting ? "Adding..." : "Add Room"}
+              {isSubmitting ? "Updating..." : "Update Room"}
             </Button>
           </DialogFooter>
         </form>

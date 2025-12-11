@@ -71,7 +71,7 @@ function DialogContent({ children, className }: DialogContentProps) {
   return (
     <div
       className={cn(
-        "border-border bg-card rounded-xl border p-6 shadow-lg",
+        "border-border bg-card max-h-[85dvh] overflow-y-auto rounded-xl border p-6 shadow-lg",
         className,
       )}
     >

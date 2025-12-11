@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import toast from "react-hot-toast";
 import {
   Sparkles,
   Search,
@@ -20,13 +21,19 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { AddAmenityModal } from "@/components/admin/AddAmenityModal";
+import { ConfirmDialog } from "@/components/ConfirmDialog";
+import {
+  getAmenities,
+  addAmenity,
+  updateAmenity,
+  deleteAmenity,
+} from "@/lib/api";
 
 interface Amenity {
   id: number;
   name: string;
-  icon: string;
-  description: string;
-  roomCount: number;
+  created_at: string;
+  updated_at: string;
 }
 
 // Icon mapping
@@ -41,93 +48,107 @@ const iconMap: Record<string, React.ComponentType<{ className?: string }>> = {
   coffee: Coffee,
 };
 
-// Mock data - replace with API call
-const mockAmenities: Amenity[] = [
-  {
-    id: 1,
-    name: "Free WiFi",
-    icon: "wifi",
-    description: "High-speed wireless internet available throughout the hotel",
-    roomCount: 24,
-  },
-  {
-    id: 2,
-    name: "Smart TV",
-    icon: "tv",
-    description: "LED Smart TV with Netflix and cable channels",
-    roomCount: 24,
-  },
-  {
-    id: 3,
-    name: "Free Parking",
-    icon: "parking",
-    description: "Secure parking space for guests",
-    roomCount: 20,
-  },
-  {
-    id: 4,
-    name: "Restaurant",
-    icon: "restaurant",
-    description: "24/7 room service and on-site restaurant",
-    roomCount: 24,
-  },
-  {
-    id: 5,
-    name: "Fitness Center",
-    icon: "gym",
-    description: "Fully equipped gym with modern equipment",
-    roomCount: 15,
-  },
-  {
-    id: 6,
-    name: "Spa & Wellness",
-    icon: "spa",
-    description: "Relaxing spa treatments and sauna",
-    roomCount: 8,
-  },
-  {
-    id: 7,
-    name: "Air Conditioning",
-    icon: "ac",
-    description: "Individual climate control in each room",
-    roomCount: 24,
-  },
-  {
-    id: 8,
-    name: "Coffee Maker",
-    icon: "coffee",
-    description: "In-room coffee and tea making facilities",
-    roomCount: 18,
-  },
-];
+const getIconKey = (name: string): string => {
+  const lower = name.toLowerCase();
+  if (lower.includes("wifi")) return "wifi";
+  if (lower.includes("tv") || lower.includes("smart")) return "tv";
+  if (lower.includes("parking")) return "parking";
+  if (lower.includes("restaurant") || lower.includes("dining"))
+    return "restaurant";
+  if (lower.includes("gym") || lower.includes("fitness")) return "gym";
+  if (lower.includes("spa") || lower.includes("wellness")) return "spa";
+  if (
+    lower.includes("air") ||
+    lower.includes("conditioning") ||
+    lower.includes("ac")
+  )
+    return "ac";
+  if (lower.includes("coffee") || lower.includes("tea")) return "coffee";
+  if (lower.includes("pool") || lower.includes("swimming")) return "pool"; // assuming pool icon exists, but not in map, maybe add
+  return "sparkles";
+};
 
 export default function AmenitiesPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [openDropdown, setOpenDropdown] = useState<number | null>(null);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
-  const [amenities, setAmenities] = useState(mockAmenities);
+  const [editingAmenity, setEditingAmenity] = useState<Amenity | null>(null);
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  const [amenityToDelete, setAmenityToDelete] = useState<Amenity | null>(null);
+  const [amenities, setAmenities] = useState<Amenity[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  const handleAddAmenity = (amenityData: {
-    name: string;
-    icon: string;
-    description: string;
-  }) => {
-    const newAmenity: Amenity = {
-      ...amenityData,
-      id: Math.max(...amenities.map((a) => a.id)) + 1,
-      roomCount: 0,
-    };
-    setAmenities((prev) => [...prev, newAmenity]);
+  useEffect(() => {
+    fetchAmenities();
+  }, []);
+
+  const fetchAmenities = async () => {
+    try {
+      const response = await getAmenities();
+      setAmenities(response.data);
+    } catch (error) {
+      console.error("Failed to fetch amenities:", error);
+      toast.error("Failed to load amenities. Please try again.");
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const filteredAmenities = amenities.filter(
-    (amenity) =>
-      amenity.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      amenity.description.toLowerCase().includes(searchQuery.toLowerCase()),
+  const handleSaveAmenity = async (amenityData: { name: string }) => {
+    try {
+      if (editingAmenity) {
+        await updateAmenity(editingAmenity.id, amenityData.name);
+        toast.success("Amenity updated successfully!");
+      } else {
+        await addAmenity(amenityData);
+        toast.success("Amenity added successfully!");
+      }
+      fetchAmenities(); // Refetch to get updated list
+      setEditingAmenity(null);
+      setIsAddModalOpen(false);
+    } catch (error) {
+      console.error("Failed to save amenity:", error);
+      toast.error(
+        `Failed to ${editingAmenity ? "update" : "add"} amenity. Please try again.`,
+      );
+    }
+  };
+
+  const handleEditAmenity = (amenity: Amenity) => {
+    setEditingAmenity(amenity);
+    setIsAddModalOpen(true);
+    setOpenDropdown(null);
+  };
+
+  const handleDeleteAmenity = (amenity: Amenity) => {
+    setAmenityToDelete(amenity);
+    setDeleteConfirmOpen(true);
+    setOpenDropdown(null);
+  };
+
+  const confirmDeleteAmenity = async () => {
+    if (!amenityToDelete) return;
+
+    try {
+      await deleteAmenity(amenityToDelete.id);
+      toast.success("Amenity deleted successfully!");
+      fetchAmenities(); // Refetch to get updated list
+    } catch (error) {
+      console.error("Failed to delete amenity:", error);
+      toast.error("Failed to delete amenity. Please try again.");
+    } finally {
+      setDeleteConfirmOpen(false);
+      setAmenityToDelete(null);
+    }
+  };
+
+  const filteredAmenities = amenities.filter((amenity) =>
+    amenity.name.toLowerCase().includes(searchQuery.toLowerCase()),
   );
 
-  const getIcon = (iconName: string) => {
-    const IconComponent = iconMap[iconName] || Sparkles;
+  const getIcon = (amenity: Amenity) => {
+    const iconKey = getIconKey(amenity.name);
+    const IconComponent = iconMap[iconKey] || Sparkles;
     return IconComponent;
   };
 
@@ -144,7 +165,10 @@ export default function AmenitiesPage() {
           </p>
         </div>
         <Button
-          onClick={() => setIsAddModalOpen(true)}
+          onClick={() => {
+            setEditingAmenity(null);
+            setIsAddModalOpen(true);
+          }}
           className="w-full sm:w-auto"
         >
           <Plus className="size-4" />
@@ -170,7 +194,7 @@ export default function AmenitiesPage() {
         <div className="border-border bg-card rounded-lg border p-4">
           <p className="text-muted-foreground text-sm">Total Amenities</p>
           <p className="text-foreground mt-1 text-2xl font-bold">
-            {mockAmenities.length}
+            {amenities.length}
           </p>
         </div>
         <div className="border-border bg-card rounded-lg border p-4">
@@ -184,7 +208,12 @@ export default function AmenitiesPage() {
       </div>
 
       {/* Amenities Grid */}
-      {filteredAmenities.length === 0 ? (
+      {loading ? (
+        <div className="border-border bg-card flex flex-col items-center justify-center rounded-xl border py-16">
+          <Sparkles className="text-muted-foreground size-12 animate-spin" />
+          <p className="text-muted-foreground mt-4">Loading amenities...</p>
+        </div>
+      ) : filteredAmenities.length === 0 ? (
         <div className="border-border bg-card flex flex-col items-center justify-center rounded-xl border py-16">
           <Sparkles className="text-muted-foreground size-12" />
           <p className="text-foreground mt-4 text-lg font-medium">
@@ -197,9 +226,9 @@ export default function AmenitiesPage() {
           </p>
         </div>
       ) : (
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+        <div className="grid grid-cols-2 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
           {filteredAmenities.map((amenity) => {
-            const Icon = getIcon(amenity.icon);
+            const Icon = getIcon(amenity);
             return (
               <div
                 key={amenity.id}
@@ -213,17 +242,23 @@ export default function AmenitiesPage() {
                         openDropdown === amenity.id ? null : amenity.id,
                       )
                     }
-                    className="hover:bg-accent rounded-lg p-1.5 opacity-0 transition-opacity group-hover:opacity-100"
+                    className="hover:bg-accent rounded-lg p-1.5 opacity-100 md:opacity-0 md:transition-opacity md:group-hover:opacity-100"
                   >
                     <MoreHorizontal className="text-muted-foreground size-4" />
                   </button>
                   {openDropdown === amenity.id && (
-                    <div className="border-border bg-card absolute top-full right-0 z-10 mt-1 w-32 overflow-hidden rounded-lg border shadow-lg">
-                      <button className="text-foreground hover:bg-accent flex w-full items-center gap-2 px-3 py-2 text-sm">
+                    <div className="border-border bg-card absolute top-full right-0 z-10 mt-1 w-32 rounded-lg border shadow-lg">
+                      <button
+                        onClick={() => handleEditAmenity(amenity)}
+                        className="text-foreground hover:bg-accent flex w-full items-center gap-2 px-3 py-2 text-sm"
+                      >
                         <Edit className="size-4" />
                         Edit
                       </button>
-                      <button className="text-destructive hover:bg-destructive/10 flex w-full items-center gap-2 px-3 py-2 text-sm">
+                      <button
+                        onClick={() => handleDeleteAmenity(amenity)}
+                        className="text-destructive hover:bg-destructive/10 flex w-full items-center gap-2 px-3 py-2 text-sm"
+                      >
                         <Trash2 className="size-4" />
                         Delete
                       </button>
@@ -237,20 +272,9 @@ export default function AmenitiesPage() {
                 </div>
 
                 {/* Content */}
-                <h3 className="text-foreground font-medium">{amenity.name}</h3>
-                <p className="text-muted-foreground mt-1 line-clamp-2 text-sm">
-                  {amenity.description}
-                </p>
-
-                {/* Footer */}
-                <div className="border-border mt-4 flex items-center justify-between border-t pt-4">
-                  <span className="text-muted-foreground text-sm">
-                    Available in
-                  </span>
-                  <span className="text-foreground font-medium">
-                    {amenity.roomCount} rooms
-                  </span>
-                </div>
+                <h3 className="text-foreground text-sm font-medium sm:text-base">
+                  {amenity.name}
+                </h3>
               </div>
             );
           })}
@@ -267,8 +291,23 @@ export default function AmenitiesPage() {
 
       <AddAmenityModal
         isOpen={isAddModalOpen}
-        onClose={() => setIsAddModalOpen(false)}
-        onAdd={handleAddAmenity}
+        onClose={() => {
+          setIsAddModalOpen(false);
+          setEditingAmenity(null);
+        }}
+        onAdd={handleSaveAmenity}
+        editingAmenity={editingAmenity}
+      />
+
+      <ConfirmDialog
+        open={deleteConfirmOpen}
+        onOpenChange={setDeleteConfirmOpen}
+        title="Delete Amenity"
+        description={`Are you sure you want to delete "${amenityToDelete?.name}"? This action cannot be undone.`}
+        confirmText="Delete"
+        cancelText="Cancel"
+        onConfirm={confirmDeleteAmenity}
+        variant="destructive"
       />
     </div>
   );

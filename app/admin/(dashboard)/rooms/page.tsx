@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   BedDouble,
   Search,
@@ -14,101 +14,143 @@ import {
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { AddRoomModal } from "@/components/admin/AddRoomModal";
+import { EditRoomModal } from "@/components/admin/EditRoomModal";
+import { ViewRoomModal } from "@/components/admin/ViewRoomModal";
+import { ConfirmDialog } from "@/components/ConfirmDialog";
+import { getRooms, addRoom, updateRoom, deleteRoom } from "@/lib/api";
+import toast from "react-hot-toast";
+import { RoomType } from "@/lib/roomTypes";
 
 interface Room {
   id: number;
   name: string;
-  slug: string;
-  description: string;
-  price: number;
+  room_number: string;
+  type: RoomType;
+  price_per_night: number;
   capacity: number;
+  description: string;
   status: "available" | "occupied" | "maintenance";
-  images: string[];
-  amenities: string[];
+  amenities: { id: number; name: string }[];
+  facilities: { id: number; name: string }[];
+  created_at: string;
+  updated_at: string;
 }
-
-// Mock data - replace with API call
-const mockRooms: Room[] = [
-  {
-    id: 1,
-    name: "Deluxe Suite",
-    slug: "deluxe-suite",
-    description: "Luxurious suite with ocean view and premium amenities",
-    price: 45000,
-    capacity: 2,
-    status: "available",
-    images: ["/assets/images/rooms/room-1.jpg"],
-    amenities: ["WiFi", "TV", "Mini Bar", "AC"],
-  },
-  {
-    id: 2,
-    name: "Executive Room",
-    slug: "executive-room",
-    description: "Spacious room perfect for business travelers",
-    price: 35000,
-    capacity: 2,
-    status: "occupied",
-    images: ["/assets/images/rooms/room-2.jpg"],
-    amenities: ["WiFi", "TV", "Work Desk", "AC"],
-  },
-  {
-    id: 3,
-    name: "Family Suite",
-    slug: "family-suite",
-    description: "Large suite ideal for families with children",
-    price: 65000,
-    capacity: 4,
-    status: "available",
-    images: ["/assets/images/rooms/room-3.jpg"],
-    amenities: ["WiFi", "TV", "Mini Kitchen", "AC", "Balcony"],
-  },
-  {
-    id: 4,
-    name: "Standard Room",
-    slug: "standard-room",
-    description: "Comfortable room with essential amenities",
-    price: 25000,
-    capacity: 2,
-    status: "maintenance",
-    images: ["/assets/images/rooms/room-4.jpg"],
-    amenities: ["WiFi", "TV", "AC"],
-  },
-  {
-    id: 5,
-    name: "Presidential Suite",
-    slug: "presidential-suite",
-    description: "The ultimate luxury experience with premium services",
-    price: 150000,
-    capacity: 4,
-    status: "occupied",
-    images: ["/assets/images/rooms/room-5.jpg"],
-    amenities: ["WiFi", "TV", "Mini Bar", "AC", "Jacuzzi", "Living Room"],
-  },
-];
 
 export default function RoomsPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [openDropdown, setOpenDropdown] = useState<number | null>(null);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
-  const [rooms, setRooms] = useState(mockRooms);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [isViewModalOpen, setIsViewModalOpen] = useState(false);
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [selectedRoom, setSelectedRoom] = useState<Room | null>(null);
+  const [rooms, setRooms] = useState<Room[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  const handleAddRoom = (roomData: {
+  useEffect(() => {
+    fetchRooms();
+  }, []);
+
+  const fetchRooms = async () => {
+    try {
+      const response = await getRooms();
+      setRooms(response.data);
+    } catch (error) {
+      console.error("Error fetching rooms:", error);
+      toast.error("Failed to load rooms");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleAddRoom = async (roomData: {
     name: string;
-    slug: string;
-    description: string;
-    price: number;
+    room_number: string;
+    type: RoomType;
+    price_per_night: number;
     capacity: number;
+    description: string;
     status: "available" | "occupied" | "maintenance";
-    images: string[];
-    amenities: string[];
+    amenities: number[];
+    facilities: number[];
   }) => {
-    const newRoom: Room = {
-      ...roomData,
-      id: Math.max(...rooms.map((r) => r.id)) + 1,
-    };
-    setRooms((prev) => [...prev, newRoom]);
+    try {
+      await addRoom(roomData);
+      toast.success("Room added successfully");
+      fetchRooms(); // Refresh the list
+    } catch (error) {
+      console.error("Error adding room:", error);
+      toast.error("Failed to add room");
+      throw error; // Re-throw to let modal handle it
+    }
+  };
+
+  const handleEditRoom = async (roomData: {
+    name: string;
+    room_number: string;
+    type: RoomType;
+    price_per_night: number;
+    capacity: number;
+    description: string;
+    status: "available" | "occupied" | "maintenance";
+    amenities: number[];
+    facilities: number[];
+  }) => {
+    if (!selectedRoom) return;
+
+    try {
+      await updateRoom(selectedRoom.id, roomData);
+      toast.success("Room updated successfully");
+      fetchRooms(); // Refresh the list
+      setIsEditModalOpen(false);
+      setSelectedRoom(null);
+    } catch (error) {
+      console.error("Error updating room:", error);
+      toast.error("Failed to update room");
+      throw error; // Re-throw to let modal handle it
+    }
+  };
+
+  const handleViewRoom = (room: Room) => {
+    setSelectedRoom(room);
+    setIsViewModalOpen(true);
+    setOpenDropdown(null);
+  };
+
+  const handleEditClick = (room: Room) => {
+    setSelectedRoom(room);
+    setIsEditModalOpen(true);
+    setOpenDropdown(null);
+  };
+
+  const handleDeleteClick = (room: Room) => {
+    setSelectedRoom(room);
+    setIsDeleteDialogOpen(true);
+    setOpenDropdown(null);
+  };
+
+  const handleDeleteRoom = async () => {
+    if (!selectedRoom) return;
+
+    try {
+      await deleteRoom(selectedRoom.id);
+      toast.success("Room deleted successfully");
+      fetchRooms(); // Refresh the list
+      setIsDeleteDialogOpen(false);
+      setSelectedRoom(null);
+    } catch (error) {
+      console.error("Error deleting room:", error);
+      toast.error("Failed to delete room");
+    }
   };
 
   const filteredRooms = rooms.filter((room) => {
@@ -168,16 +210,17 @@ export default function RoomsPage() {
         </div>
         <div className="flex items-center gap-2">
           <Filter className="text-muted-foreground size-4" />
-          <select
-            value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value)}
-            className="border-input bg-background focus:border-ring focus:ring-ring/50 h-10 rounded-md border px-3 text-sm focus:ring-2 focus:outline-none"
-          >
-            <option value="all">All Status</option>
-            <option value="available">Available</option>
-            <option value="occupied">Occupied</option>
-            <option value="maintenance">Maintenance</option>
-          </select>
+          <Select value={statusFilter} onValueChange={setStatusFilter}>
+            <SelectTrigger className="h-10 w-[140px]">
+              <SelectValue placeholder="All Status" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Status</SelectItem>
+              <SelectItem value="available">Available</SelectItem>
+              <SelectItem value="occupied">Occupied</SelectItem>
+              <SelectItem value="maintenance">Maintenance</SelectItem>
+            </SelectContent>
+          </Select>
         </div>
       </div>
 
@@ -186,31 +229,36 @@ export default function RoomsPage() {
         <div className="border-border bg-card rounded-lg border p-4">
           <p className="text-muted-foreground text-sm">Total Rooms</p>
           <p className="text-foreground mt-1 text-2xl font-bold">
-            {mockRooms.length}
+            {rooms.length}
           </p>
         </div>
         <div className="border-border bg-card rounded-lg border p-4">
           <p className="text-muted-foreground text-sm">Available</p>
           <p className="mt-1 text-2xl font-bold text-green-600">
-            {mockRooms.filter((r) => r.status === "available").length}
+            {rooms.filter((r) => r.status === "available").length}
           </p>
         </div>
         <div className="border-border bg-card rounded-lg border p-4">
           <p className="text-muted-foreground text-sm">Occupied</p>
           <p className="mt-1 text-2xl font-bold text-blue-600">
-            {mockRooms.filter((r) => r.status === "occupied").length}
+            {rooms.filter((r) => r.status === "occupied").length}
           </p>
         </div>
         <div className="border-border bg-card rounded-lg border p-4">
           <p className="text-muted-foreground text-sm">Maintenance</p>
           <p className="mt-1 text-2xl font-bold text-orange-600">
-            {mockRooms.filter((r) => r.status === "maintenance").length}
+            {rooms.filter((r) => r.status === "maintenance").length}
           </p>
         </div>
       </div>
 
       {/* Rooms Grid/Table */}
-      {filteredRooms.length === 0 ? (
+      {loading ? (
+        <div className="border-border bg-card flex flex-col items-center justify-center rounded-xl border py-16">
+          <div className="border-muted-foreground size-8 animate-spin rounded-full border-2 border-t-transparent"></div>
+          <p className="text-muted-foreground mt-4">Loading rooms...</p>
+        </div>
+      ) : filteredRooms.length === 0 ? (
         <div className="border-border bg-card flex flex-col items-center justify-center rounded-xl border py-16">
           <BedDouble className="text-muted-foreground size-12" />
           <p className="text-foreground mt-4 text-lg font-medium">
@@ -225,12 +273,15 @@ export default function RoomsPage() {
       ) : (
         <>
           {/* Desktop Table View */}
-          <div className="border-border bg-card hidden overflow-hidden rounded-xl border lg:block">
+          <div className="border-border bg-card hidden rounded-xl border lg:block">
             <table className="w-full">
               <thead className="border-border bg-accent/50 border-b">
                 <tr>
                   <th className="text-muted-foreground px-6 py-4 text-left text-sm font-medium">
                     Room
+                  </th>
+                  <th className="text-muted-foreground px-6 py-4 text-left text-sm font-medium">
+                    Type
                   </th>
                   <th className="text-muted-foreground px-6 py-4 text-left text-sm font-medium">
                     Price/Night
@@ -263,15 +314,18 @@ export default function RoomsPage() {
                           <p className="text-foreground font-medium">
                             {room.name}
                           </p>
-                          <p className="text-muted-foreground max-w-xs truncate text-sm">
-                            {room.description}
+                          <p className="text-muted-foreground text-sm">
+                            Room {room.room_number}
                           </p>
                         </div>
                       </div>
                     </td>
                     <td className="px-6 py-4">
+                      <p className="text-foreground">{room.type}</p>
+                    </td>
+                    <td className="px-6 py-4">
                       <p className="text-foreground font-medium">
-                        {formatPrice(room.price)}
+                        {formatPrice(room.price_per_night)}
                       </p>
                     </td>
                     <td className="px-6 py-4">
@@ -291,10 +345,10 @@ export default function RoomsPage() {
                       <div className="flex flex-wrap gap-1">
                         {room.amenities.slice(0, 3).map((amenity) => (
                           <span
-                            key={amenity}
+                            key={amenity.id}
                             className="bg-accent text-muted-foreground rounded px-2 py-0.5 text-xs"
                           >
-                            {amenity}
+                            {amenity.name}
                           </span>
                         ))}
                         {room.amenities.length > 3 && (
@@ -317,16 +371,25 @@ export default function RoomsPage() {
                           <MoreHorizontal className="text-muted-foreground size-5" />
                         </button>
                         {openDropdown === room.id && (
-                          <div className="border-border bg-card absolute top-full right-0 z-10 mt-1 w-40 overflow-hidden rounded-lg border shadow-lg">
-                            <button className="text-foreground hover:bg-accent flex w-full items-center gap-2 px-4 py-2.5 text-sm">
+                          <div className="border-border bg-card absolute top-full right-0 z-50 mt-1 w-40 overflow-hidden rounded-lg border shadow-lg">
+                            <button
+                              onClick={() => handleViewRoom(room)}
+                              className="text-foreground hover:bg-accent flex w-full items-center gap-2 px-4 py-2.5 text-sm"
+                            >
                               <Eye className="size-4" />
                               View
                             </button>
-                            <button className="text-foreground hover:bg-accent flex w-full items-center gap-2 px-4 py-2.5 text-sm">
+                            <button
+                              onClick={() => handleEditClick(room)}
+                              className="text-foreground hover:bg-accent flex w-full items-center gap-2 px-4 py-2.5 text-sm"
+                            >
                               <Edit className="size-4" />
                               Edit
                             </button>
-                            <button className="text-destructive hover:bg-destructive/10 flex w-full items-center gap-2 px-4 py-2.5 text-sm">
+                            <button
+                              onClick={() => handleDeleteClick(room)}
+                              className="text-destructive hover:bg-destructive/10 flex w-full items-center gap-2 px-4 py-2.5 text-sm"
+                            >
                               <Trash2 className="size-4" />
                               Delete
                             </button>
@@ -354,6 +417,9 @@ export default function RoomsPage() {
                     </div>
                     <div>
                       <p className="text-foreground font-medium">{room.name}</p>
+                      <p className="text-muted-foreground text-sm">
+                        Room {room.room_number} • {room.type}
+                      </p>
                       <span
                         className={cn(
                           "mt-1 inline-block rounded-full px-2 py-0.5 text-xs font-medium capitalize",
@@ -376,16 +442,25 @@ export default function RoomsPage() {
                       <MoreHorizontal className="text-muted-foreground size-5" />
                     </button>
                     {openDropdown === room.id && (
-                      <div className="border-border bg-card absolute top-full right-0 z-10 mt-1 w-40 overflow-hidden rounded-lg border shadow-lg">
-                        <button className="text-foreground hover:bg-accent flex w-full items-center gap-2 px-4 py-2.5 text-sm">
+                      <div className="border-border bg-card absolute top-full right-0 z-50 mt-1 w-40 overflow-hidden rounded-lg border shadow-lg">
+                        <button
+                          onClick={() => handleViewRoom(room)}
+                          className="text-foreground hover:bg-accent flex w-full items-center gap-2 px-4 py-2.5 text-sm"
+                        >
                           <Eye className="size-4" />
                           View
                         </button>
-                        <button className="text-foreground hover:bg-accent flex w-full items-center gap-2 px-4 py-2.5 text-sm">
+                        <button
+                          onClick={() => handleEditClick(room)}
+                          className="text-foreground hover:bg-accent flex w-full items-center gap-2 px-4 py-2.5 text-sm"
+                        >
                           <Edit className="size-4" />
                           Edit
                         </button>
-                        <button className="text-destructive hover:bg-destructive/10 flex w-full items-center gap-2 px-4 py-2.5 text-sm">
+                        <button
+                          onClick={() => handleDeleteClick(room)}
+                          className="text-destructive hover:bg-destructive/10 flex w-full items-center gap-2 px-4 py-2.5 text-sm"
+                        >
                           <Trash2 className="size-4" />
                           Delete
                         </button>
@@ -400,7 +475,7 @@ export default function RoomsPage() {
                   <div>
                     <p className="text-muted-foreground text-sm">Price/Night</p>
                     <p className="text-foreground font-medium">
-                      {formatPrice(room.price)}
+                      {formatPrice(room.price_per_night)}
                     </p>
                   </div>
                   <div className="text-right">
@@ -413,10 +488,10 @@ export default function RoomsPage() {
                 <div className="mt-3 flex flex-wrap gap-1">
                   {room.amenities.map((amenity) => (
                     <span
-                      key={amenity}
+                      key={amenity.id}
                       className="bg-accent text-muted-foreground rounded px-2 py-0.5 text-xs"
                     >
-                      {amenity}
+                      {amenity.name}
                     </span>
                   ))}
                 </div>
@@ -438,6 +513,30 @@ export default function RoomsPage() {
         isOpen={isAddModalOpen}
         onClose={() => setIsAddModalOpen(false)}
         onAdd={handleAddRoom}
+      />
+
+      <EditRoomModal
+        isOpen={isEditModalOpen}
+        onClose={() => setIsEditModalOpen(false)}
+        onEdit={handleEditRoom}
+        room={selectedRoom}
+      />
+
+      <ViewRoomModal
+        isOpen={isViewModalOpen}
+        onClose={() => setIsViewModalOpen(false)}
+        room={selectedRoom}
+      />
+
+      <ConfirmDialog
+        open={isDeleteDialogOpen}
+        onOpenChange={setIsDeleteDialogOpen}
+        title="Delete Room"
+        description={`Are you sure you want to delete "${selectedRoom?.name}" (Room ${selectedRoom?.room_number})? This action cannot be undone.`}
+        confirmText="Delete"
+        cancelText="Cancel"
+        onConfirm={handleDeleteRoom}
+        variant="destructive"
       />
     </div>
   );
