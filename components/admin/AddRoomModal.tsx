@@ -454,7 +454,7 @@ export function AddRoomModal({ isOpen, onClose, onAdd }: AddRoomModalProps) {
                       No images selected
                     </p>
                     <p className="text-muted-foreground text-xs">
-                      Click "Upload Images" to add room photos
+                      Click &quot;Upload Images&quot; to add room photos
                     </p>
                   </div>
                 )}

@@ -48,7 +48,6 @@ export default function HeroForm() {
   const [roomTypeInfo, setRoomTypeInfo] = useState<RoomTypeInfo[]>([]);
   const [loading, setLoading] = useState(true);
   const [errors, setErrors] = useState<{ [key: string]: string }>({});
-  const [isSubmitting, setIsSubmitting] = useState(false);
   const [isBookingModalOpen, setIsBookingModalOpen] = useState(false);
   const [bookingData, setBookingData] = useState<{
     room_id: number;
@@ -375,16 +374,9 @@ export default function HeroForm() {
         <Button
           type="submit"
           className="h-full md:text-lg lg:text-2xl"
-          disabled={loading || isSubmitting}
+          disabled={loading}
         >
-          {isSubmitting ? (
-            <div className="flex items-center gap-2">
-              <div className="size-5 animate-spin rounded-full border-2 border-white border-t-transparent"></div>
-              Processing...
-            </div>
-          ) : (
-            "Book Now"
-          )}
+          Book Now
         </Button>
       </form>
 

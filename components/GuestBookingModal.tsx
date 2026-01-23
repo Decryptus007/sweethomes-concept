@@ -90,10 +90,15 @@ export function GuestBookingModal({
       setBookingId(bookingResponse.data.id);
       setStep("success");
       toast.success("Booking created successfully!");
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Error creating booking:", error);
-      if (error.response?.data?.message) {
-        toast.error(error.response.data.message);
+      if (error && typeof error === 'object' && 'response' in error) {
+        const axiosError = error as { response?: { data?: { message?: string } } };
+        if (axiosError.response?.data?.message) {
+          toast.error(axiosError.response.data.message);
+        } else {
+          toast.error("Failed to create booking. Please try again.");
+        }
       } else {
         toast.error("Failed to create booking. Please try again.");
       }
@@ -130,10 +135,15 @@ export function GuestBookingModal({
       setBookingId(bookingResponse.data.id);
       setStep("success");
       toast.success("Booking created successfully!");
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Error creating booking:", error);
-      if (error.response?.data?.message) {
-        toast.error(error.response.data.message);
+      if (error && typeof error === 'object' && 'response' in error) {
+        const axiosError = error as { response?: { data?: { message?: string } } };
+        if (axiosError.response?.data?.message) {
+          toast.error(axiosError.response.data.message);
+        } else {
+          toast.error("Failed to create booking. Please try again.");
+        }
       } else {
         toast.error("Failed to create booking. Please try again.");
       }
@@ -422,7 +432,7 @@ export function GuestBookingModal({
                   </p>
                 </div>
                 <p className="text-muted-foreground text-sm">
-                  An account has been created for you and you're now logged in!
+                  An account has been created for you and you&apos;re now logged in!
                   You can access your dashboard anytime to view your bookings.
                 </p>
                 <div className="bg-white rounded-lg p-3 space-y-2">

@@ -46,10 +46,15 @@ export function LoginModal({ isOpen, onClose }: LoginModalProps) {
       // Reset form
       setFormData({ email: "", password: "" });
       onClose();
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Login error:", error);
-      if (error.response?.data?.message) {
-        toast.error(error.response.data.message);
+      if (error && typeof error === 'object' && 'response' in error) {
+        const axiosError = error as { response?: { data?: { message?: string } } };
+        if (axiosError.response?.data?.message) {
+          toast.error(axiosError.response.data.message);
+        } else {
+          toast.error("Login failed. Please check your credentials.");
+        }
       } else {
         toast.error("Login failed. Please check your credentials.");
       }

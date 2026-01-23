@@ -5,7 +5,6 @@ import { useUserAuth } from "@/hooks/useUserAuth";
 import { getUserBookings } from "@/lib/api";
 import { Calendar, User, Mail, Phone, BedDouble, Clock, LogOut } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import toast from "react-hot-toast";
 import { useRouter } from "next/navigation";
