@@ -15,10 +15,16 @@ export function DatePicker({
   date,
   setDate,
   className,
+  minDate,
+  maxDate,
+  placeholder = "Pick a date",
 }: {
   date: Date | undefined;
   setDate: React.Dispatch<React.SetStateAction<Date | undefined>>;
   className?: string;
+  minDate?: Date;
+  maxDate?: Date;
+  placeholder?: string;
 }) {
   return (
     <Popover>
@@ -32,7 +38,7 @@ export function DatePicker({
           )}
         >
           {/* <CalendarIcon /> */}
-          {date ? format(date, "PPP") : <span>Pick a date</span>}
+          {date ? format(date, "PPP") : <span>{placeholder}</span>}
         </Button>
       </PopoverTrigger>
       <PopoverContent className="w-auto p-0">
@@ -41,6 +47,19 @@ export function DatePicker({
           selected={date}
           onSelect={setDate}
           captionLayout="dropdown"
+          disabled={(date) => {
+            // Disable past dates
+            if (minDate && date < minDate) {
+              return true;
+            }
+            // Disable dates beyond max date
+            if (maxDate && date > maxDate) {
+              return true;
+            }
+            return false;
+          }}
+          fromDate={minDate}
+          toDate={maxDate}
         />
       </PopoverContent>
     </Popover>

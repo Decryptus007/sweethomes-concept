@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -22,7 +22,9 @@ import {
 import { getAmenities, getFacilities } from "@/lib/api";
 import { ROOM_TYPE_OPTIONS, RoomType } from "@/lib/roomTypes";
 import { CustomMultiSelect } from "@/components/ui/CustomMultiSelect";
+import { Upload, X, Image as ImageIcon } from "lucide-react";
 import toast from "react-hot-toast";
+import { getApiImageUrl } from "@/lib/utils";
 
 interface Amenity {
   id: number;
@@ -45,6 +47,7 @@ interface Room {
   status: "available" | "occupied" | "maintenance";
   amenities: { id: number; name: string }[];
   facilities: { id: number; name: string }[];
+  images: { id: number; room_id: number; image_path: string; created_at: string; updated_at: string }[];
   created_at: string;
   updated_at: string;
 }
@@ -62,6 +65,7 @@ interface EditRoomModalProps {
     status: "available" | "occupied" | "maintenance";
     amenities: number[];
     facilities: number[];
+    images?: File[];
   }) => void;
   room: Room | null;
 }
@@ -97,6 +101,10 @@ export function EditRoomModal({
   const [amenities, setAmenities] = useState<Amenity[]>([]);
   const [facilities, setFacilities] = useState<Facility[]>([]);
   const [loading, setLoading] = useState(false);
+  const [selectedImages, setSelectedImages] = useState<File[]>([]);
+  const [imagePreviews, setImagePreviews] = useState<string[]>([]);
+  const [fileInputKey, setFileInputKey] = useState<number>(0);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (isOpen && room) {
@@ -119,6 +127,10 @@ export function EditRoomModal({
         })),
       };
       setFormData(newFormData);
+      // Reset images when opening modal for editing
+      setSelectedImages([]);
+      setImagePreviews([]);
+      setFileInputKey(prev => prev + 1);
     } else if (!isOpen) {
       // Reset form when modal closes
       setFormData({
@@ -132,6 +144,11 @@ export function EditRoomModal({
         amenities: [],
         facilities: [],
       });
+      setSelectedImages([]);
+      setImagePreviews([]);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
     }
   }, [isOpen, room]);
 
@@ -152,6 +169,59 @@ export function EditRoomModal({
     }
   };
 
+  const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files || []);
+    if (files.length === 0) return;
+
+    // Validate file types
+    const validTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
+    const invalidFiles = files.filter(file => !validTypes.includes(file.type));
+
+    if (invalidFiles.length > 0) {
+      toast.error('Please select only image files (JPEG, PNG, WebP)');
+      return;
+    }
+
+    // Validate file sizes (max 5MB per file)
+    const oversizedFiles = files.filter(file => file.size > 5 * 1024 * 1024);
+    if (oversizedFiles.length > 0) {
+      toast.error('Please select images smaller than 5MB');
+      return;
+    }
+
+    // Limit total number of images
+    const totalImages = selectedImages.length + files.length;
+    if (totalImages > 10) {
+      toast.error('Maximum 10 images allowed');
+      return;
+    }
+
+    // Add new files to existing selection
+    const newImages = [...selectedImages, ...files];
+    setSelectedImages(newImages);
+
+    // Create previews for new files
+    const newPreviews = [...imagePreviews];
+    files.forEach(file => {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        newPreviews.push(e.target?.result as string);
+        setImagePreviews([...newPreviews]);
+      };
+      reader.readAsDataURL(file);
+    });
+  };
+
+  const removeImage = (index: number) => {
+    const newImages = selectedImages.filter((_, i) => i !== index);
+    const newPreviews = imagePreviews.filter((_, i) => i !== index);
+    setSelectedImages(newImages);
+    setImagePreviews(newPreviews);
+
+    // Reset file input to allow re-selecting the same files
+    setFileInputKey(prev => prev + 1);
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
@@ -167,11 +237,12 @@ export function EditRoomModal({
         status: formData.status,
         amenities: formData.amenities.map((a) => a.value),
         facilities: formData.facilities.map((f) => f.value),
+        images: selectedImages.length > 0 ? selectedImages : undefined,
       };
 
-      onEdit(roomData);
+      await onEdit(roomData);
 
-      // Reset form
+      // Reset form only after successful submission
       setFormData({
         name: "",
         room_number: "",
@@ -183,16 +254,26 @@ export function EditRoomModal({
         amenities: [],
         facilities: [],
       });
+      setSelectedImages([]);
+      setImagePreviews([]);
+      setFileInputKey(prev => prev + 1);
     } catch (error) {
       console.error("Error updating room:", error);
-      toast.error("Failed to update room");
+      // Don't close modal on error, let user retry
     } finally {
       setIsSubmitting(false);
     }
   };
 
   return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
+    <Dialog
+      open={isOpen}
+      onOpenChange={(open) => {
+        if (!isSubmitting && !open) {
+          onClose();
+        }
+      }}
+    >
       <DialogContent className="sm:max-w-[600px]">
         <DialogHeader className="flex-col">
           <DialogTitle>Edit Room</DialogTitle>
@@ -204,207 +285,325 @@ export function EditRoomModal({
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            <div className="space-y-2">
-              <label
-                htmlFor="name"
-                className="text-foreground block text-sm font-medium"
-              >
-                Room Name *
-              </label>
-              <Input
-                id="name"
-                value={formData.name}
-                onChange={(e) =>
-                  setFormData((prev) => ({ ...prev, name: e.target.value }))
-                }
-                placeholder="e.g., Deluxe Suite"
-                required
-              />
+          <fieldset disabled={isSubmitting} className="space-y-4">
+            {isSubmitting && (
+              <div className="bg-accent/50 absolute inset-0 z-10 flex items-center justify-center rounded-lg">
+                <div className="bg-background flex items-center gap-3 rounded-lg px-4 py-2 shadow-lg">
+                  <div className="border-primary size-4 animate-spin rounded-full border-2 border-t-transparent"></div>
+                  <span className="text-foreground text-sm font-medium">Updating room...</span>
+                </div>
+              </div>
+            )}
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <div className="space-y-2">
+                <label
+                  htmlFor="name"
+                  className="text-foreground block text-sm font-medium"
+                >
+                  Room Name *
+                </label>
+                <Input
+                  id="name"
+                  value={formData.name}
+                  onChange={(e) =>
+                    setFormData((prev) => ({ ...prev, name: e.target.value }))
+                  }
+                  placeholder="e.g., Deluxe Suite"
+                  required
+                />
+              </div>
+
+              <div className="space-y-2">
+                <label
+                  htmlFor="room_number"
+                  className="text-foreground block text-sm font-medium"
+                >
+                  Room Number *
+                </label>
+                <Input
+                  id="room_number"
+                  value={formData.room_number}
+                  onChange={(e) =>
+                    setFormData((prev) => ({
+                      ...prev,
+                      room_number: e.target.value,
+                    }))
+                  }
+                  placeholder="e.g., 102"
+                  required
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <div className="space-y-2">
+                <label className="text-foreground block text-sm font-medium">
+                  Room Type *
+                </label>
+                <ShadcnSelect
+                  value={formData.type}
+                  onValueChange={(value: RoomType) =>
+                    setFormData((prev) => ({ ...prev, type: value }))
+                  }
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select room type" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {ROOM_TYPE_OPTIONS.map((option) => (
+                      <SelectItem key={option.value} value={option.value}>
+                        {option.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </ShadcnSelect>
+              </div>
+
+              <div className="space-y-2">
+                <label
+                  htmlFor="status"
+                  className="text-foreground block text-sm font-medium"
+                >
+                  Status
+                </label>
+                <ShadcnSelect
+                  key={`status-${room?.id || "new"}`}
+                  value={formData.status}
+                  onValueChange={(
+                    value: "available" | "occupied" | "maintenance",
+                  ) => {
+                    if (value) {
+                      setFormData((prev) => ({ ...prev, status: value }));
+                    }
+                  }}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select status" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="available">Available</SelectItem>
+                    <SelectItem value="occupied">Occupied</SelectItem>
+                    <SelectItem value="maintenance">Maintenance</SelectItem>
+                  </SelectContent>
+                </ShadcnSelect>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <div className="space-y-2">
+                <label
+                  htmlFor="price_per_night"
+                  className="text-foreground block text-sm font-medium"
+                >
+                  Price per Night (₦) *
+                </label>
+                <Input
+                  id="price_per_night"
+                  type="number"
+                  value={formData.price_per_night}
+                  onChange={(e) =>
+                    setFormData((prev) => ({
+                      ...prev,
+                      price_per_night: e.target.value,
+                    }))
+                  }
+                  placeholder="199.99"
+                  min="0"
+                  step="0.01"
+                  required
+                />
+              </div>
+
+              <div className="space-y-2">
+                <label
+                  htmlFor="capacity"
+                  className="text-foreground block text-sm font-medium"
+                >
+                  Capacity *
+                </label>
+                <Input
+                  id="capacity"
+                  type="number"
+                  value={formData.capacity}
+                  onChange={(e) =>
+                    setFormData((prev) => ({ ...prev, capacity: e.target.value }))
+                  }
+                  placeholder="2"
+                  min="1"
+                  required
+                />
+              </div>
             </div>
 
             <div className="space-y-2">
               <label
-                htmlFor="room_number"
+                htmlFor="description"
                 className="text-foreground block text-sm font-medium"
               >
-                Room Number *
+                Description *
               </label>
-              <Input
-                id="room_number"
-                value={formData.room_number}
+              <Textarea
+                id="description"
+                value={formData.description}
                 onChange={(e) =>
                   setFormData((prev) => ({
                     ...prev,
-                    room_number: e.target.value,
+                    description: e.target.value,
                   }))
                 }
-                placeholder="e.g., 102"
+                placeholder="Describe the room features and amenities..."
+                rows={3}
                 required
               />
             </div>
-          </div>
 
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            {/* Image Upload Section */}
             <div className="space-y-2">
               <label className="text-foreground block text-sm font-medium">
-                Room Type *
+                Update Room Images
               </label>
-              <ShadcnSelect
-                value={formData.type}
-                onValueChange={(value: RoomType) =>
-                  setFormData((prev) => ({ ...prev, type: value }))
-                }
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select room type" />
-                </SelectTrigger>
-                <SelectContent>
-                  {ROOM_TYPE_OPTIONS.map((option) => (
-                    <SelectItem key={option.value} value={option.value}>
-                      {option.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </ShadcnSelect>
+              <div className="space-y-4">
+                {/* Existing Images */}
+                {room && room.images && room.images.length > 0 && (
+                  <div className="space-y-2">
+                    <p className="text-muted-foreground text-sm">
+                      Current images ({room.images.length}):
+                    </p>
+                    <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
+                      {room.images.map((image) => (
+                        <div key={image.id} className="relative">
+                          <div className="border-border bg-accent aspect-square overflow-hidden rounded-lg border">
+                            <img
+                              src={getApiImageUrl(image.image_path)}
+                              alt={`Room image ${image.id}`}
+                              className="size-full object-cover"
+                            />
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Upload Button */}
+                <div className="flex items-center gap-4">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => fileInputRef.current?.click()}
+                    className="flex items-center gap-2"
+                  >
+                    <Upload className="size-4" />
+                    Upload New Images
+                  </Button>
+                  <span className="text-muted-foreground text-sm">
+                    Max 10 images, 5MB each (JPEG, PNG, WebP)
+                  </span>
+                </div>
+
+                <input
+                  key={fileInputKey}
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/jpeg,image/jpg,image/png,image/webp"
+                  multiple
+                  onChange={handleImageSelect}
+                  className="hidden"
+                />
+
+                {/* Image Previews */}
+                {imagePreviews.length > 0 && (
+                  <div className="space-y-2">
+                    <p className="text-muted-foreground text-sm">
+                      New images to upload:
+                    </p>
+                    <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
+                      {imagePreviews.map((preview, index) => (
+                        <div key={index} className="relative">
+                          <div className="border-border bg-accent aspect-square overflow-hidden rounded-lg border">
+                            <img
+                              src={preview}
+                              alt={`New room image ${index + 1}`}
+                              className="size-full object-cover"
+                            />
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => removeImage(index)}
+                            className="bg-destructive text-destructive-foreground hover:bg-destructive/90 absolute -top-2 -right-2 flex size-6 items-center justify-center rounded-full shadow-sm"
+                          >
+                            <X className="size-3" />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Info Message */}
+                <div className="border-border bg-accent/50 rounded-lg border p-4">
+                  <div className="flex items-start gap-3">
+                    <ImageIcon className="text-muted-foreground size-5 mt-0.5" />
+                    <div>
+                      <p className="text-foreground text-sm font-medium">
+                        Image Upload Information
+                      </p>
+                      <p className="text-muted-foreground mt-1 text-xs">
+                        {selectedImages.length > 0
+                          ? `${selectedImages.length} new image(s) selected. These will be added to the existing room images.`
+                          : "Upload new images to add to this room. Existing images will be preserved."
+                        }
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </div>
             </div>
 
-            <div className="space-y-2">
-              <label
-                htmlFor="status"
-                className="text-foreground block text-sm font-medium"
-              >
-                Status
-              </label>
-              <ShadcnSelect
-                key={`status-${room?.id || "new"}`}
-                value={formData.status}
-                onValueChange={(
-                  value: "available" | "occupied" | "maintenance",
-                ) => {
-                  if (value) {
-                    setFormData((prev) => ({ ...prev, status: value }));
-                  }
-                }}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select status" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="available">Available</SelectItem>
-                  <SelectItem value="occupied">Occupied</SelectItem>
-                  <SelectItem value="maintenance">Maintenance</SelectItem>
-                </SelectContent>
-              </ShadcnSelect>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            <div className="space-y-2">
-              <label
-                htmlFor="price_per_night"
-                className="text-foreground block text-sm font-medium"
-              >
-                Price per Night (₦) *
-              </label>
-              <Input
-                id="price_per_night"
-                type="number"
-                value={formData.price_per_night}
-                onChange={(e) =>
+            <div className="grid grid-cols-1 gap-4">
+              <CustomMultiSelect
+                label="Amenities"
+                options={amenities.map((amenity) => ({
+                  value: amenity.id,
+                  label: amenity.name,
+                }))}
+                value={formData.amenities}
+                onChange={(selected) =>
                   setFormData((prev) => ({
                     ...prev,
-                    price_per_night: e.target.value,
+                    amenities: selected,
                   }))
                 }
-                placeholder="199.99"
-                min="0"
-                step="0.01"
-                required
+                placeholder="Select amenities..."
+                isLoading={loading}
               />
-            </div>
 
-            <div className="space-y-2">
-              <label
-                htmlFor="capacity"
-                className="text-foreground block text-sm font-medium"
-              >
-                Capacity *
-              </label>
-              <Input
-                id="capacity"
-                type="number"
-                value={formData.capacity}
-                onChange={(e) =>
-                  setFormData((prev) => ({ ...prev, capacity: e.target.value }))
+              <CustomMultiSelect
+                label="Facilities"
+                options={facilities.map((facility) => ({
+                  value: facility.id,
+                  label: facility.name,
+                }))}
+                value={formData.facilities}
+                onChange={(selected) =>
+                  setFormData((prev) => ({
+                    ...prev,
+                    facilities: selected,
+                  }))
                 }
-                placeholder="2"
-                min="1"
-                required
+                placeholder="Select facilities..."
+                isLoading={loading}
               />
             </div>
-          </div>
-
-          <div className="space-y-2">
-            <label
-              htmlFor="description"
-              className="text-foreground block text-sm font-medium"
-            >
-              Description *
-            </label>
-            <Textarea
-              id="description"
-              value={formData.description}
-              onChange={(e) =>
-                setFormData((prev) => ({
-                  ...prev,
-                  description: e.target.value,
-                }))
-              }
-              placeholder="Describe the room features and amenities..."
-              rows={3}
-              required
-            />
-          </div>
-
-          <div className="grid grid-cols-1 gap-4">
-            <CustomMultiSelect
-              label="Amenities"
-              options={amenities.map((amenity) => ({
-                value: amenity.id,
-                label: amenity.name,
-              }))}
-              value={formData.amenities}
-              onChange={(selected) =>
-                setFormData((prev) => ({
-                  ...prev,
-                  amenities: selected,
-                }))
-              }
-              placeholder="Select amenities..."
-              isLoading={loading}
-            />
-
-            <CustomMultiSelect
-              label="Facilities"
-              options={facilities.map((facility) => ({
-                value: facility.id,
-                label: facility.name,
-              }))}
-              value={formData.facilities}
-              onChange={(selected) =>
-                setFormData((prev) => ({
-                  ...prev,
-                  facilities: selected,
-                }))
-              }
-              placeholder="Select facilities..."
-              isLoading={loading}
-            />
-          </div>
+          </fieldset>
 
           <DialogFooter>
-            <Button type="button" variant="outline" onClick={onClose}>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={onClose}
+              disabled={isSubmitting}
+            >
               Cancel
             </Button>
             <Button type="submit" disabled={isSubmitting}>

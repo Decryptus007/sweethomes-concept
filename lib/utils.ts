@@ -5,6 +5,25 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
+// Helper function to get full image URL for API images
+export const getApiImageUrl = (imagePath: string): string => {
+  // Get the base URL and remove /api suffix if present
+  let baseURL =
+    process.env.NEXT_PUBLIC_API_URL ?? "https://api.sweethomes.com.ng/api";
+
+  // Remove /api from the end if it exists
+  if (baseURL.endsWith("/api")) {
+    baseURL = baseURL.slice(0, -4);
+  }
+
+  // Ensure it starts with https://
+  if (!baseURL.startsWith("http")) {
+    baseURL = `https://${baseURL}`;
+  }
+
+  return `${baseURL}/storage/${imagePath}`;
+};
+
 export const rooms = [
   {
     name: "Premier Room – King Bed & View",

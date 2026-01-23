@@ -9,6 +9,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { RoomType } from "@/lib/roomTypes";
+import { getApiImageUrl } from "@/lib/utils";
 
 interface Room {
   id: number;
@@ -21,6 +22,7 @@ interface Room {
   status: "available" | "occupied" | "maintenance";
   amenities: { id: number; name: string }[];
   facilities: { id: number; name: string }[];
+  images: { id: number; room_id: number; image_path: string; created_at: string; updated_at: string }[];
   created_at: string;
   updated_at: string;
 }
@@ -74,6 +76,27 @@ export function ViewRoomModal({ isOpen, onClose, room }: ViewRoomModalProps) {
         </DialogHeader>
 
         <div className="space-y-6">
+          {/* Room Images */}
+          {room.images && room.images.length > 0 && (
+            <div>
+              <h3 className="text-foreground mb-3 font-medium">Room Images</h3>
+              <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+                {room.images.map((image) => (
+                  <div
+                    key={image.id}
+                    className="border-border bg-accent aspect-square overflow-hidden rounded-lg border"
+                  >
+                    <img
+                      src={getApiImageUrl(image.image_path)}
+                      alt={`${room.name} - Image ${image.id}`}
+                      className="size-full object-cover transition-transform hover:scale-105"
+                    />
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
           {/* Status and Basic Info */}
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">

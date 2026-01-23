@@ -12,6 +12,7 @@ import {
   Filter,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { getApiImageUrl } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -40,6 +41,7 @@ interface Room {
   status: "available" | "occupied" | "maintenance";
   amenities: { id: number; name: string }[];
   facilities: { id: number; name: string }[];
+  images: { id: number; room_id: number; image_path: string; created_at: string; updated_at: string }[];
   created_at: string;
   updated_at: string;
 }
@@ -48,6 +50,7 @@ export default function RoomsPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [openDropdown, setOpenDropdown] = useState<number | null>(null);
+
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isViewModalOpen, setIsViewModalOpen] = useState(false);
@@ -82,16 +85,12 @@ export default function RoomsPage() {
     status: "available" | "occupied" | "maintenance";
     amenities: number[];
     facilities: number[];
+    images?: File[];
   }) => {
-    try {
-      await addRoom(roomData);
-      toast.success("Room added successfully");
-      fetchRooms(); // Refresh the list
-    } catch (error) {
-      console.error("Error adding room:", error);
-      toast.error("Failed to add room");
-      throw error; // Re-throw to let modal handle it
-    }
+    await addRoom(roomData);
+    toast.success("Room added successfully");
+    fetchRooms(); // Refresh the list
+    setIsAddModalOpen(false);
   };
 
   const handleEditRoom = async (roomData: {
@@ -104,20 +103,15 @@ export default function RoomsPage() {
     status: "available" | "occupied" | "maintenance";
     amenities: number[];
     facilities: number[];
+    images?: File[];
   }) => {
     if (!selectedRoom) return;
 
-    try {
-      await updateRoom(selectedRoom.id, roomData);
-      toast.success("Room updated successfully");
-      fetchRooms(); // Refresh the list
-      setIsEditModalOpen(false);
-      setSelectedRoom(null);
-    } catch (error) {
-      console.error("Error updating room:", error);
-      toast.error("Failed to update room");
-      throw error; // Re-throw to let modal handle it
-    }
+    await updateRoom(selectedRoom.id, roomData);
+    toast.success("Room updated successfully");
+    fetchRooms(); // Refresh the list
+    setIsEditModalOpen(false);
+    setSelectedRoom(null);
   };
 
   const handleViewRoom = (room: Room) => {
@@ -306,9 +300,17 @@ export default function RoomsPage() {
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-3">
                         <div className="bg-accent size-12 overflow-hidden rounded-lg">
-                          <div className="flex size-full items-center justify-center">
-                            <BedDouble className="text-muted-foreground size-6" />
-                          </div>
+                          {room.images && room.images.length > 0 ? (
+                            <img
+                              src={getApiImageUrl(room.images[0].image_path)}
+                              alt={room.name}
+                              className="size-full object-cover"
+                            />
+                          ) : (
+                            <div className="flex size-full items-center justify-center">
+                              <BedDouble className="text-muted-foreground size-6" />
+                            </div>
+                          )}
                         </div>
                         <div>
                           <p className="text-foreground font-medium">
@@ -412,8 +414,18 @@ export default function RoomsPage() {
               >
                 <div className="flex items-start justify-between">
                   <div className="flex items-center gap-3">
-                    <div className="bg-accent flex size-12 items-center justify-center rounded-lg">
-                      <BedDouble className="text-muted-foreground size-6" />
+                    <div className="bg-accent size-12 overflow-hidden rounded-lg">
+                      {room.images && room.images.length > 0 ? (
+                        <img
+                          src={getApiImageUrl(room.images[0].image_path)}
+                          alt={room.name}
+                          className="size-full object-cover"
+                        />
+                      ) : (
+                        <div className="flex size-full items-center justify-center">
+                          <BedDouble className="text-muted-foreground size-6" />
+                        </div>
+                      )}
                     </div>
                     <div>
                       <p className="text-foreground font-medium">{room.name}</p>
